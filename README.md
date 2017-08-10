@@ -198,4 +198,190 @@ Abra o seu projeto no seu editor desejado para que possamos edita-lo. Se você u
 
 ### Passo 3 - Aplicando libs externas no Ionic
 Para aplicar uma lib externa no ionic é simples, baixe aqui mesmo em nosso gitHub a lib que se encontra na pasta
-exemplos\src\assets\_js
+https://github.com/pauloanalista/Consumindo-SignalR-no-Ionic/tree/master/src/assets/_js
+
+É necessário colocar nossa lib na pasta assets, devido o ionic processar os arquivos e gerar um arquivo final que será interpretado pelo browser, que fica na pasta www de seu projeto. Essa pasta nunca é versionada, pois toda mudança feita em seu projeto, essa pasta é renovada com novos arquivos.
+
+Após colocar os js do jquery e jquery do signalr em seu projeto, basta referenciar esses arquivos no seu index.html.
+
+```sh
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Ionic App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-tap-highlight" content="no">
+
+
+
+  <link rel="icon" type="image/x-icon" href="assets/icon/favicon.ico">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4e8ef7">
+
+  <!-- cordova.js required for cordova apps -->
+  <script src="cordova.js"></script>
+
+  <!-- un-comment this code to enable service worker
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('service worker installed'))
+        .catch(err => console.error('Error', err));
+    }
+  </script>-->
+
+  <link href="build/main.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+  <!-- Ionic's root component and where the app will load -->
+  <ion-app></ion-app>
+
+  <script src="assets/_js/jquery/jquery-2.1.4.js"></script>
+  <script src="assets/_js/SignalR/jquery.signalR-2.1.2.js"></script>
+  <script src="http://signalr.samich.com.br:8080/signalr/hubs"></script>
+
+
+  <!-- The polyfills js is generated during the build process -->
+  <script src="build/polyfills.js"></script>
+
+  <!-- The vendor js is generated during the build process
+       It contains all of the dependencies in node_modules -->
+  <script src="build/vendor.js"></script>
+
+  <!-- The main bundle js is generated during the build process -->
+  <script src="build/main.js"></script>
+
+  
+</body>
+
+</html>
+
+```
+### Passo 4 - Configurando nossa página para ouvir o SignalR
+
+Depois que fizer isso é só abrir o arquivo ts da página que você deseja receber as notificações do SignalR. 
+
+```sh
+
+import { Component } from '@angular/core';
+import { NavController } from 'ionic-angular';
+
+const win = window as any;
+const $ = win.$;
+
+// CONECTA NA URL GERADA PELO SERVI�O DO SIGNALR
+$.connection.hub.url = "http://signalr.samich.com.br:8080/signalr";
+
+//CRIO UMA CONEXAO COM O HUB CRIADO LA NO C#
+const conexao = $.connection.notificacaoHub;
+
+@Component({
+  selector: 'page-home',
+  templateUrl: 'home.html'
+})
+export class HomePage {
+
+  constructor(public navCtrl: NavController) {
+
+  }
+
+  ionViewDidLoad() {
+
+    //console.log($);
+    //console.log($.connection);
+
+    console.log(conexao);
+
+    // RECEBE AS MENSAGENS
+    conexao.client.notificar = function (msg, id) {
+      console.log(msg, id);
+    };
+
+    // INICIA UMA CONEXAO AO CARREGAR UMA PAGINA
+    $.connection.hub.start().done(function () {
+
+      //ENTRO NO GRUPO ABC
+      conexao.server.joinGroup(6);
+    });
+
+  }
+
+  enviar() {
+    //ATENCAO -> TODOS OS CLIENTES IRÃO VER ESTA NOTIFICACAO
+    conexao.server.enviarNotificacao({Titulo: "TESTE TRACKBUS", Mensagem: "DESCONSIDERE ESTA MENSAGEM", TipoNotificacao: "success", CodigoLinhaGPS: "143M"}, "6"); 
+  }
+}
+
+```
+
+#### Explicação
+Como já sabemos o TypeScript é um superset do javascript, ou seja, escrevemos em TypeScript e após a transpilação é gerado um JS final que será interpretado pelo browser.
+Como eu não achei nenhum pacote NPM que me ajudasse a trabalhar com o SignalR, eu resolvi utilizar o JavaScript direto no meu TypeScript, afinal ele funciona tanto com código TypeScript como Javascript.
+
+Para que o TypeScript reconheça minhas libs precisei usar este código:
+
+```sh
+const win = window as any;
+const $ = win.$;
+
+```
+
+Eu pego o escopo Javascript windows e jogo em uma variável win e logo em seguida eu pego o jquery que está dentro do windows através da variável win e jogo no $, uma variavel que eu criei para acessar o jQuery.
+
+Sabemos que o próprio jQuery funciona com $, porém ele não reconhece, por isso eu faço essa jogado.
+
+Antes mesmo de criar nosso componente eu configuro nossa conexão:
+
+```sh
+// CONECTA NA URL GERADA PELO SERVI�O DO SIGNALR
+$.connection.hub.url = "http://signalr.samich.com.br:8080/signalr";
+
+//CRIO UMA CONEXAO COM O HUB CRIADO LA NO C#
+const conexao = $.connection.notificacaoHub;
+
+```
+
+Depois que a página é carregada no ionic eu conecto no SignalR e dou join em algum channel de minha escolha que esteja disponível.
+
+```sh
+ionViewDidLoad() {
+    // RECEBE AS MENSAGENS
+    conexao.client.notificar = function (msg, id) {
+      console.log(msg, id);
+    };
+
+    // INICIA UMA CONEXAO AO CARREGAR UMA PAGINA
+    $.connection.hub.start().done(function () {
+
+      //ENTRO NO GRUPO ABC
+      conexao.server.joinGroup(6);
+    });
+
+  }
+
+```
+
+Isso já é o suficiente para receber as notificações.
+
+Você pode enviar uma notificação desta forma
+
+```sh
+
+enviar() {
+    //ATENCAO -> TODOS OS CLIENTES IRÃO VER ESTA NOTIFICACAO
+    conexao.server.enviarNotificacao({Titulo: "TESTE PAULO", Mensagem: "DESCONSIDERE ESTA MENSAGEM", TipoNotificacao: "success", CodigoLinhaGPS: "143M"}, "6"); 
+  }
+  
+``` 
+
+#### Observação
+Lembre-se o exemplo foi montado baseado no resultado que foi montado pelo o SignalR que estou consumindo, ou seja, o Hub de seu SignalR pode ter outro nome e os métodos de enviar e receber notificações também podem ser diferentes.
+
+
+
